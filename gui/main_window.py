@@ -80,10 +80,6 @@ class MainWindow(QMainWindow):
         self.add_btn.clicked.connect(self.add_avatar_dialog)
         toolbar.addWidget(self.add_btn)
 
-        self.import_vrcx_btn = QPushButton("Import from VRCX")
-        self.import_vrcx_btn.clicked.connect(self.import_vrcx)
-        toolbar.addWidget(self.import_vrcx_btn)
-
         main_layout.addLayout(toolbar)
 
         splitter = QSplitter()
@@ -127,7 +123,6 @@ class MainWindow(QMainWindow):
         file_menu.addAction("Import from VRChat Website...", self.import_from_website)
         file_menu.addAction("Import &Favourites from VRChat...", self.sync_favorites)
         file_menu.addAction("&Move Favourites Between Groups...", self.move_favorites)
-        file_menu.addAction("Import from VRCX...", self.import_vrcx)
         file_menu.addAction("&Add Avatar Manually...", self.add_avatar_dialog)
         file_menu.addSeparator()
         file_menu.addAction("Manage Categories...", self.manage_categories)
@@ -156,7 +151,7 @@ class MainWindow(QMainWindow):
         help_menu.addAction("&About", lambda: QMessageBox.about(self, "About",
             "INF Avis - VRChat Avatar Library Manager\n\n"
             "Manage your personal VRChat avatar library offline.\n"
-            "Paste avatar IDs, look up via API, or import from VRCX."))
+            "Paste avatar IDs or look up via API."))
 
         self.update_api_menu()
 
@@ -523,135 +518,6 @@ class MainWindow(QMainWindow):
             self._apply_settings()
             self.load_categories()
             self.load_avatars()
-
-    def import_vrcx(self):
-        db_path = self._choose_vrcx_db()
-        if not db_path:
-            return
-
-        confirm = QMessageBox.question(self, "Import from VRCX",
-            f"Import avatars from VRCX database?\n\n{db_path}\n\nThis will add any new avatars "
-            f"found in your VRCX history/favorites to your library.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if confirm != QMessageBox.StandardButton.Yes:
-            return
-
-        progress = QProgressDialog("Importing from VRCX...", "Cancel", 0, 100, self)
-        progress.setWindowTitle("Import")
-        progress.setMinimumDuration(0)
-
-        try:
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row
-            imported = 0
-            skipped = 0
-
-            tables = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('avatars', 'favorites')"
-            ).fetchall()
-            table_names = {t["name"] for t in tables}
-
-            if "avatars" in table_names:
-                rows = conn.execute("""
-                    SELECT DISTINCT id, name, author_name, thumbnail_url, description
-                    FROM avatars ORDER BY id
-                """).fetchall()
-                progress.setMaximum(len(rows) if rows else 1)
-                for i, row in enumerate(rows):
-                    if progress.wasCanceled():
-                        break
-                    progress.setValue(i)
-                    aid = row["id"]
-                    if not aid:
-                        continue
-                    existing = db.get_avatar(aid)
-                    if existing:
-                        skipped += 1
-                        continue
-                    db.add_avatar(
-                        avatar_id=aid,
-                        name=row.get("name", "") or "Unknown",
-                        author=row.get("author_name", "") or "",
-                        thumbnail_url=row.get("thumbnail_url", "") or "",
-                        description=row.get("description", "") or "",
-                    )
-                    imported += 1
-
-            if "favorites" in table_names and imported < 500:
-                rows = conn.execute("""
-                    SELECT DISTINCT id, name, author_name, thumbnail_url, description
-                    FROM favorites WHERE type = 'avatar' ORDER BY id
-                """).fetchall()
-                progress.setMaximum(len(rows) if rows else 1)
-                for i, row in enumerate(rows):
-                    if progress.wasCanceled():
-                        break
-                    progress.setValue(i)
-                    aid = row["id"]
-                    if not aid:
-                        continue
-                    existing = db.get_avatar(aid)
-                    if existing:
-                        skipped += 1
-                        continue
-                    db.add_avatar(
-                        avatar_id=aid,
-                        name=row.get("name", "") or "Unknown",
-                        author=row.get("author_name", "") or "",
-                        thumbnail_url=row.get("thumbnail_url", "") or "",
-                        description=row.get("description", "") or "",
-                    )
-                    imported += 1
-
-            conn.close()
-            progress.setValue(progress.maximum())
-
-            QMessageBox.information(self, "Import Complete",
-                f"Imported {imported} new avatars.\n{skipped} already existed.\n\n"
-                f"Source: VRCX database")
-
-        except Exception as e:
-            QMessageBox.critical(self, "Import Error", f"Failed to import: {e}")
-
-        self.load_categories()
-        self.load_avatars()
-
-    def _choose_vrcx_db(self):
-        """Locate VRCX.sqlite3 automatically, otherwise ask the user for it.
-
-        VRCX ships as a Windows binary, so on Linux the database lives inside a
-        Wine or Proton prefix whose location depends on how the user launched
-        the game. Search the common prefixes first and fall back to a file
-        dialog rather than guessing.
-        """
-        found = [str(p) for p in paths.find_vrcx_databases()]
-
-        if len(found) == 1:
-            return found[0]
-        if len(found) > 1:
-            # Labels carry the date for readability, so map the reply back to
-            # the path: getItem() returns the label, not the item data.
-            labels = [f"{p}\n    modified {self._format_mtime(p)}" for p in found]
-            choice, ok = QInputDialog.getItem(
-                self, "Import from VRCX",
-                "More than one VRCX database was found. Which one?", labels, 0, False)
-            if not ok:
-                return None
-            return found[labels.index(choice)]
-
-        QMessageBox.information(
-            self, "VRCX Not Found",
-            "No VRCX.sqlite3 was found in the usual locations.\n\n"
-            "VRCX is a Windows app, so on Linux its database normally sits inside\n"
-            "the Wine or Proton prefix you run the game with, for example:\n"
-            "  ~/.steam/steam/steamapps/compatdata/<appid>/pfx/drive_c/users/"
-            "<user>/AppData/Local/VRCX/\n\n"
-            "Locate it yourself instead?")
-
-        chosen, _ = QFileDialog.getOpenFileName(
-            self, "Select VRCX.sqlite3", str(Path.home()),
-            "SQLite databases (*.sqlite3);;All files (*)")
-        return chosen or None
 
     @staticmethod
     def _format_mtime(path):

@@ -1,4 +1,4 @@
-"""Tests for paths.py that need a controlled HOME, so they run in a subprocess:
+"""Tests for paths.py that need a controlled HOME:
 
     python3 tests/test_paths.py
 
@@ -144,44 +144,7 @@ def main():
           (app3 / "avatar_library.db").is_file() and out == "[]",
           f"got {out} err={err}")
 
-    print("vrcx discovery")
-    # Each case gets its own HOME so the fixtures cannot leak into each other.
-    scratch = Path(tempfile.mkdtemp(prefix="infavis-vrcx-"))
-
-    def fresh_home(name):
-        home = scratch / name
-        home.mkdir()
-        shutil.copy2(PATHS_PY, home / "paths.py")
-        return home
-
-    def vrcx_case(key, name, relative):
-        home = fresh_home(key)
-        out, err = run_paths(
-            "import os\n"
-            f"target = os.path.expanduser('{relative}')\n"
-            "os.makedirs(target)\n"
-            "open(os.path.join(target, 'VRCX.sqlite3'), 'w').close()\n"
-            "print(paths.find_vrcx_databases())", home)
-        check(name, out == f"[PosixPath('{home}/{relative.lstrip('~').lstrip('/')}/VRCX.sqlite3')]",
-              f"got {out} err={err}")
-
-    vrcx_case("bottles", "finds a VRCX db inside a Bottles prefix",
-              "~/.var/app/com.usebottles.bottles/data/bottles/bottles/"
-              "main/drive_c/users/u/AppData/Local/VRCX")
-    vrcx_case("proton", "finds a VRCX db inside a Proton prefix",
-              "~/.steam/steam/steamapps/compatdata/123/pfx/drive_c/users/"
-              "u/AppData/Local/VRCX")
-    vrcx_case("wine", "finds a VRCX db in a plain Wine prefix",
-              "~/.wine/drive_c/users/u/AppData/Roaming/VRCX")
-    vrcx_case("flatpak", "finds a VRCX db in a flatpak Steam prefix",
-              "~/.var/app/com.valvesoftware.Steam/data/Steam/steamapps/"
-              "compatdata/99/pfx/drive_c/users/u/AppData/Local/VRCX")
-
-    empty_home = fresh_home("empty")
-    out, err = run_paths("print(paths.find_vrcx_databases())", empty_home)
-    check("empty result when nothing is installed", out == "[]", f"got {out} err={err}")
-
-    for directory in (root, root2, root3, scratch):
+    for directory in (root, root2, root3):
         shutil.rmtree(directory, ignore_errors=True)
 
     print()

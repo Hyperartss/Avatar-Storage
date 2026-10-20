@@ -1,10 +1,10 @@
 # INF Avis
 
-A desktop avatar library for VRChat. Built to let you sort, categorize, and favorite avatars locally — same idea as VRCX, but cross-platform and without the game attached.
+A desktop avatar library for VRChat. Built to let you sort, categorize, and favorite avatars locally — cross-platform, no game client required.
 
 ## What it does
 
-- **Import avatars** from VRChat (by ID, profile URL, or your favorites list) or from a VRCX database
+- **Import avatars** from VRChat (by ID, profile URL, or your favorites list)
 - **Organize with categories** — drag avatars onto category names in the sidebar, or use the folder button on a card
 - **Favorite on VRChat** — the star button syncs your favorites to vrchat.com (handles groups, 2FA, rate limits)
 - **Move favorites between VRChat groups** — bulk reassign with a clear preview of what changes
@@ -35,6 +35,24 @@ INF_AVIS_PORTABLE=1 ./run.sh
 ```
 Keeps database, cache, and session inside the source tree.
 
+## Install & run (Windows)
+
+1. Install Python 3.10+ from python.org (check "Add to PATH")
+2. Open PowerShell in the project folder:
+   ```powershell
+   python -m venv .venv
+   .venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   python main.py
+   ```
+
+### Windows portable build
+```powershell
+pip install pyinstaller
+pyinstaller --noconfirm --clean --windowed --name "INF Avis" --add-data "gui;gui" --add-data "api;api" --add-data "database.py;." --add-data "paths.py;." main.py
+```
+Produces `dist/INF Avis/INF Avis.exe` — copy the folder anywhere and run.
+
 ## Where your data lives
 
 | Thing | Linux | Windows | macOS |
@@ -43,7 +61,7 @@ Keeps database, cache, and session inside the source tree.
 | Session cookie | `~/.config/INF Avis/` | `%APPDATA%\INF Avis\` | `~/Library/Preferences/INF Avis/` |
 | Thumbnails | `~/.cache/INF Avis/` | `%LOCALAPPDATA%\INF Avis\cache\` | `~/Library/Caches/INF Avis/` |
 
-`XDG_DATA_HOME` / `XDG_CONFIG_HOME` / `XDG_CACHE_HOME` are respected. Config dir is `0700`, session file `0600` (it holds a live auth cookie).
+`XDG_DATA_HOME` / `XDG_CONFIG_HOME` / `XDG_CACHE_HOME` are respected on Linux. Config dir is `0700`, session file `0600` (it holds a live auth cookie).
 
 ## Importing from VRChat
 
@@ -58,12 +76,6 @@ Paste anything you copied from vrchat.com:
 Pick a category to file them into (or create one inline). Re-importing refreshes name, author, thumbnail, tags, stats — **your notes, favorites, and categories stay untouched**.
 
 You need to log in first. VRChat returns 401 even for public avatars.
-
-## Importing from VRCX
-
-`File → Import from VRCX…`
-
-Searches the usual Wine/Proton/Bottles/flatpak Steam locations for `VRCX.sqlite3` and offers a file picker if not found. Imports avatars only; your local categories and notes are left alone.
 
 ## Favorites sync
 
@@ -93,13 +105,27 @@ Group names matter: VRChat returns both a `name` (internal slug like `avatars1`)
 
 ```bash
 QT_QPA_PLATFORM=offscreen python3 tests/smoke_test.py       # builds the real window
-python3 tests/test_paths.py                                  # paths and VRCX discovery
+python3 tests/test_paths.py                                  # paths and migration
 QT_QPA_PLATFORM=offscreen python3 tests/test_import.py       # importer, stub API
 QT_QPA_PLATFORM=offscreen python3 tests/test_favorites.py    # favorites sync, stub API
 QT_QPA_PLATFORM=offscreen python3 tests/test_sorting.py      # sorting and filter state
 ```
 
 All tests copy the app to a temp dir first (path migration relocates files relative to `paths.py`). None touch the network or a real VRChat session.
+
+## Building releases
+
+### Linux
+```bash
+./build_linux.sh [version]
+```
+Creates `dist/inf-avis-<version>-linux-x86_64.tar.gz` with a portable launcher.
+
+### Windows
+```powershell
+pyinstaller --noconfirm --clean --windowed --name "INF Avis" --add-data "gui;gui" --add-data "api;api" --add-data "database.py;." --add-data "paths.py;." main.py
+```
+Creates `dist/INF Avis/INF Avis.exe` — zip the folder for distribution.
 
 ## Requirements
 

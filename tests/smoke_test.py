@@ -140,11 +140,6 @@ def main():
     check("category appears in sidebar", window.sidebar.list.count() >= 1,
           f"count={window.sidebar.list.count()}")
 
-    # VRCX discovery must not explode when nothing is installed.
-    found = paths.find_vrcx_databases()
-    check("vrcx discovery returns a list", isinstance(found, list))
-    check("choose_vrcx_db reachable", callable(window._choose_vrcx_db))
-
     # Resizing used to rebuild every card; it must not raise now.
     window.resize(1200, 800)
     app_.processEvents()
