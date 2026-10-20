@@ -5,10 +5,17 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 import database as db
-from api.vrchat_api import VRChatAPI
+from api.vrchat_api import VRChatAPI, VRChatAPIError
 
 class AvatarLookupThread(QThread):
+    """Looks up one avatar, always reporting back.
+
+    The failure signal matters: a lookup that returns nothing used to leave the
+    dialog stuck on "Looking up..." forever.
+    """
+
     finished = pyqtSignal(dict)
+    failed = pyqtSignal(str)
 
     def __init__(self, api, avatar_id):
         super().__init__()
@@ -16,8 +23,18 @@ class AvatarLookupThread(QThread):
         self.avatar_id = avatar_id
 
     def run(self):
-        data = self.api.lookup_avatar(self.avatar_id)
-        if data:
+        try:
+            data = self.api.lookup_avatar(self.avatar_id)
+        except VRChatAPIError as error:
+            self.failed.emit(error.message.strip('"'))
+            return
+        except Exception as error:
+            self.failed.emit(str(error))
+            return
+
+        if data is None:
+            self.failed.emit("VRChat has no avatar with that id.")
+        else:
             self.finished.emit(data)
 
 class AddAvatarDialog(QDialog):
@@ -79,7 +96,10 @@ class AddAvatarDialog(QDialog):
 
     def on_id_changed(self, text):
         parsed = self._parse_id(text)
-        self.lookup_btn.setEnabled(bool(parsed) and self.vrchat_api is not None)
+        # VRChat needs a session even for public avatars, so do not offer a
+        # lookup that is guaranteed to fail.
+        self.lookup_btn.setEnabled(
+            bool(parsed) and self.vrchat_api is not None and self.vrchat_api.authenticated)
 
     def do_lookup(self):
         parsed = self._parse_id(self.id_input.text())
@@ -89,7 +109,13 @@ class AddAvatarDialog(QDialog):
         self.lookup_btn.setText("Looking up...")
         self.thread = AvatarLookupThread(self.vrchat_api, parsed)
         self.thread.finished.connect(self.on_lookup_result)
+        self.thread.failed.connect(self.on_lookup_failed)
         self.thread.start()
+
+    def on_lookup_failed(self, message):
+        self.lookup_btn.setText("Look Up (via API)")
+        self.lookup_btn.setEnabled(True)
+        QMessageBox.warning(self, "Lookup Failed", message)
 
     def on_lookup_result(self, data):
         self.lookup_data = data

@@ -1,0 +1,27 @@
+# Credentials. session.json is a live VRChat auth cookie and must never be committed.
+session.json
+
+# Runtime data. All of this now lives under the XDG directories by default,
+# but keep it ignored in case someone runs in portable mode.
+avatar_library.db
+avatar_library.db-wal
+avatar_library.db-shm
+cache/
+*.png
+
+# Virtualenv created by setup.sh
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
