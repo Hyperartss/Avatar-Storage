@@ -123,7 +123,11 @@ Creates `dist/inf-avis-<version>-linux-x86_64.tar.gz` with a portable launcher.
 
 ### Windows
 ```powershell
-pyinstaller --noconfirm --clean --windowed --name "INF Avis" --add-data "gui;gui" --add-data "api;api" --add-data "database.py;." --add-data "paths.py;." main.py
+# Quick build
+.\build_windows.ps1
+
+# Or with version
+.\build_windows.ps1 -Version "1.2.3"
 ```
 Creates `dist/INF Avis/INF Avis.exe` — zip the folder for distribution.
 
