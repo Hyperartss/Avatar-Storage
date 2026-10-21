@@ -104,18 +104,19 @@ class FavoriteToggleWorker(OtpAwareWorker):
                 self._store(avatar_id, favorite_id)
                 return True, "Already a favourite on VRChat"
         if "tags is required" in message.lower():
-            # Some VRChat endpoints refuse to favourite an avatar unless a group
-            # is specified. Try again with the default 'avatars1' group slug if
-            # one exists on this account, otherwise let the error surface.
+            # VRChat requires a group slug when favoriting. Try the user's groups,
+            # fall back to the well-known default 'avatars1'.
             slugs = []
             try:
                 groups = self._with_otp(self.api.get_favorite_groups, "avatar")
                 slugs = [g.get("slug") for g in groups if g.get("slug")]
             except Exception:
                 slugs = []
-            if slugs:
+            if not slugs:
+                slugs = ["avatars1"]
+            for slug in slugs:
                 ok, message = self._with_otp(self.api.add_favorite,
-                                             avatar_id, slugs[0])
+                                             avatar_id, slug)
                 if ok:
                     self._store(avatar_id, message)
                     return True, message
@@ -125,6 +126,9 @@ class FavoriteToggleWorker(OtpAwareWorker):
                     if favorite_id:
                         self._store(avatar_id, favorite_id)
                         return True, "Already a favourite on VRChat"
+                # If this slug failed for another reason, try the next one
+                if "tags is required" not in message.lower():
+                    break
         return False, message
 
     def _remove(self, avatar_id):

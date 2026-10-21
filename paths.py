@@ -19,7 +19,13 @@ import sys
 from pathlib import Path
 
 APP_NAME = "INF Avis"
-APP_DIR = Path(__file__).resolve().parent
+
+# In a PyInstaller bundle, __file__ points to the temp extraction dir.
+# Use sys.executable to find the real app location when frozen.
+if getattr(sys, 'frozen', False):
+    APP_DIR = Path(sys.executable).resolve().parent
+else:
+    APP_DIR = Path(__file__).resolve().parent
 
 _TRUTHY = {"1", "true", "yes", "on"}
 _migration_attempted = False

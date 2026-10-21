@@ -33,40 +33,31 @@ jobs:
         run: python -m pip install --upgrade pip pyinstaller
 
       - name: Build with PyInstaller
-        run: |
-          python -m PyInstaller \
-            --clean --noconfirm --windowed \
-            --name inf-avis \
-            --add-data "gui:gui" \
-            --add-data "api:api" \
-            --add-data "database.py:." \
-            --add-data "paths.py:." \
-            --hidden-import=PyQt6.QtSvg \
-            --hidden-import=certifi \
-            --exclude-module=tkinter \
-            --exclude-module=matplotlib \
-            --exclude-module=numpy \
-            --exclude-module=pytest \
-            main.py
+        run: python -m PyInstaller --clean --noconfirm build/linux/build.spec
 
-      - name: Create portable launcher
+      - name: Package release folder
         run: |
-          mkdir -p dist/inf-avis
-          cp -r dist/inf-avis/* dist/inf-avis/
-          cat > dist/inf-avis/inf-avis << 'EOF'
+          VERSION="${GITHUB_REF_NAME#v}"
+          RELEASE_DIR="release/linux/inf-avis-${VERSION}-linux-x86_64"
+          mkdir -p "${RELEASE_DIR}"
+          cp -r dist/inf-avis/* "${RELEASE_DIR}/"
+          # Launcher
+          cat > "${RELEASE_DIR}/inf-avis" << 'EOF'
           #!/usr/bin/env bash
           set -euo pipefail
           cd "$(dirname "$0")"
           export INF_AVIS_PORTABLE=1
           exec "./inf-avis" "$@"
           EOF
-          chmod +x dist/inf-avis/inf-avis
+          chmod +x "${RELEASE_DIR}/inf-avis"
+          cp README.md "${RELEASE_DIR}/" 2>/dev/null || true
 
-      - name: Package tarball
+      - name: Create tarball
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          TARBALL="inf-avis-${VERSION}-linux-x86_64.tar.gz"
-          tar -czf "${TARBALL}" -C dist inf-avis
+          TARBALL="release/inf-avis-${VERSION}-linux-x86_64.tar.gz"
+          mkdir -p release
+          tar -czf "${TARBALL}" -C release/linux "inf-avis-${VERSION}-linux-x86_64"
           echo "TARBALL=${TARBALL}" >> $GITHUB_OUTPUT
         id: package
 
@@ -94,28 +85,25 @@ jobs:
         run: python -m pip install --upgrade pip pyinstaller
 
       - name: Build with PyInstaller
-        run: |
-          python -m PyInstaller ^
-            --clean --noconfirm --windowed ^
-            --name "INF Avis" ^
-            --add-data "gui;gui" ^
-            --add-data "api;api" ^
-            --add-data "database.py;." ^
-            --add-data "paths.py;." ^
-            --hidden-import=PyQt6.QtSvg ^
-            --hidden-import=certifi ^
-            --exclude-module=tkinter ^
-            --exclude-module=matplotlib ^
-            --exclude-module=numpy ^
-            --exclude-module=pytest ^
-            main.py
+        run: python -m PyInstaller --clean --noconfirm build/windows/build.spec
 
-      - name: Package zip
+      - name: Package release folder
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
-          $zipName = "inf-avis-${version}-win64.zip"
-          Compress-Archive -Path "dist\INF Avis" -DestinationPath $zipName
-          echo "ZIP=$zipName" >> $env:GITHUB_OUTPUT
+          $releaseDir = "release/windows/INF Avis-$version-win64"
+          if (Test-Path $releaseDir) { Remove-Item -Recurse -Force $releaseDir }
+          New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
+          Copy-Item -Recurse "dist\INF Avis\*" $releaseDir
+          Copy-Item "README.md" $releaseDir -ErrorAction SilentlyContinue
+        shell: pwsh
+
+      - name: Create zip
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $zipPath = "release/inf-avis-$version-win64.zip"
+          if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
+          Compress-Archive -Path "release/windows/INF Avis-$version-win64" -DestinationPath $zipPath
+          echo "ZIP=$zipPath" >> $env:GITHUB_OUTPUT
         shell: pwsh
         id: package
 
