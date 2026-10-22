@@ -24,4 +24,4 @@ dist/
 .vscode/
 .idea/
 *.swp
-.DS_Store
+.DS_Storerelease/
