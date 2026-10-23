@@ -24,4 +24,7 @@ dist/
 .vscode/
 .idea/
 *.swp
-.DS_Storerelease/
+.DS_Store
+
+# Build output (never commit release binaries)
+release/

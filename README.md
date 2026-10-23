@@ -49,9 +49,9 @@ Keeps database, cache, and session inside the source tree.
 ### Windows portable build
 ```powershell
 pip install pyinstaller
-pyinstaller --noconfirm --clean --windowed --name "INF Avis" --add-data "gui;gui" --add-data "api;api" --add-data "database.py;." --add-data "paths.py;." main.py
+pyinstaller --noconfirm --clean --windowed --name inf-avis --add-data "gui;gui" --add-data "api;api" --add-data "database.py;." --add-data "paths.py;." main.py
 ```
-Produces `dist/INF Avis/INF Avis.exe` — copy the folder anywhere and run.
+Produces `dist/inf-avis/inf-avis.exe` — copy the folder anywhere and run. (Or use `.\build_windows.ps1`, which also creates a versioned zip.)
 
 ## Where your data lives
 
@@ -119,7 +119,7 @@ All tests copy the app to a temp dir first (path migration relocates files relat
 ```bash
 ./build_linux.sh [version]
 ```
-Creates `dist/inf-avis-<version>-linux-x86_64.tar.gz` with a portable launcher.
+Creates `release/linux/inf-avis-<version>-linux-x86_64/` and `release/inf-avis-<version>-linux-x86_64.tar.gz`.
 
 ### Windows
 ```powershell
@@ -127,9 +127,11 @@ Creates `dist/inf-avis-<version>-linux-x86_64.tar.gz` with a portable launcher.
 .\build_windows.ps1
 
 # Or with version
-.\build_windows.ps1 -Version "1.2.3"
+.\build_windows.ps1 1.2.3
 ```
-Creates `dist/INF Avis/INF Avis.exe` — zip the folder for distribution.
+Creates `release/windows/inf-avis-<version>-win64/` and `release/inf-avis-<version>-win64.zip`.
+
+Pushing a `v*` tag (for example `git tag v1.0.0 && git push origin v1.0.0`) builds both packages on GitHub Actions and publishes them to the Releases page.
 
 ## Requirements
 
